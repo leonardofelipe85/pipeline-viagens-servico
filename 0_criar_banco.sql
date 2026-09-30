@@ -95,3 +95,13 @@ CREATE TABLE silver_viagem (
 	valor_total	DECIMAL(12,2),
 	duracao_dias	INT
 );
+
+CREATE TABLE silver_pagamento(
+    id_pagamento	SERIAL PRIMARY KEY,
+	id_viagem	VARCHAR(20) NOT NULL REFERENCES silver_viagem(id_viagem),
+	num_proposta	VARCHAR(20),
+	nome_orgao_pagador	VARCHAR(255),
+	nome_ug_pagadora	VARCHAR(255),
+	tipo_pagamento	VARCHAR(50) NOT NULL,
+	valor	DECIMAL(10,2) CHECK (valor >= 0)
+);
