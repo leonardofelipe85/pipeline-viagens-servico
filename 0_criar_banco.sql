@@ -1,3 +1,7 @@
+DROP DATABASE IF EXISTS transparencia WITH (FORCE);
+CREATE DATABASE transparencia;
+\c transparencia
+
 CREATE TABLE raw_viagem (
     id_viagem VARCHAR(20),
     num_proposta VARCHAR(20),
@@ -76,7 +80,7 @@ CREATE TABLE raw_trecho(
 );
 
 CREATE TABLE silver_viagem (
-    id_viagem	VARCHAR(20) PRIMARY KEY, NOT NULL, 
+    id_viagem	VARCHAR(20) PRIMARY KEY NOT NULL, 
     num_proposta	VARCHAR(20),
 	situacao	VARCHAR(50),
 	viagem_urgente	VARCHAR(5),
@@ -105,3 +109,33 @@ CREATE TABLE silver_pagamento(
 	tipo_pagamento	VARCHAR(50) NOT NULL,
 	valor	DECIMAL(10,2) CHECK (valor >= 0)
 );
+
+CREATE TABLE silver_passagem (
+    id_passagem	SERIAL PRIMARY KEY,
+	id_viagem	VARCHAR(20) NOT NULL REFERENCES silver_viagem(id_viagem),
+	meio_transporte	VARCHAR(50),
+	pais_origem_ida	VARCHAR(60),
+	uf_origem_ida	VARCHAR(40),
+	cidade_origem_ida	VARCHAR(80),
+	pais_destino_ida	VARCHAR(60),
+	uf_destino_ida	VARCHAR(40),
+	cidade_destino_ida	VARCHAR(80),
+	valor_passagem	DECIMAL(10,2) CHECK (valor_passagem >= 0),
+	taxa_servico	DECIMAL(10,2) CHECK (taxa_servico >= 0),
+	data_emissao	DATE
+);
+
+CREATE TABLE silver_trecho (
+    id_trecho	SERIAL PRIMARY KEY, 
+	id_viagem	VARCHAR(20) NOT NULL REFERENCES silver_viagem(id_viagem),
+	sequencia_trecho	INT,
+	origem_data	DATE,
+	origem_uf	VARCHAR(40),
+	origem_cidade	VARCHAR(80),
+	destino_data	DATE,
+	destino_uf	VARCHAR(40),
+	destino_cidade	VARCHAR(80), 
+	meio_transporte	VARCHAR(50),
+	numero_diarias	DECIMAL(10,2) CHECK (numero_diarias >= 0), 
+    UNIQUE (id_viagem, sequencia_trecho)
+); 
