@@ -1,0 +1,12 @@
+CREATE TABLE raw_viagem (
+    id_viagem VARCHAR(20),
+    num_proposta VARCHAR(20),
+    situacao VARCHAR(50),
+    viagem_urgente VARCHAR(5),
+    justificativa_urgencia VARCHAR(4000),
+    cod_orgao_superior	VARCHAR(20), 
+    nome_orgao_superior	VARCHAR(255),
+    cod_orgao_solicitante	VARCHAR(20),
+    nome_orgao_solicitante	VARCHAR(255),
+    cpf_viajante	VARCHAR(20),
+    nome_viajante	VARCHAR(255), 
