@@ -14,6 +14,9 @@ def baixar_dados():
     # 3. Baixar o zip do Drive usando o ID importado do config.py
     if not caminho_zip.exists(): 
         gdown.download(id=DRIVE_FILE_ID, output=str(caminho_zip))
+        print("Download concluído")
+    else: 
+        print("Arquivo já existe, pulando download.")
 
     # 4. Extrair os CSVs na mesma pasta
     with zipfile.ZipFile(caminho_zip) as zip_ref:
