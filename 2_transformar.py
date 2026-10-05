@@ -22,6 +22,14 @@ def converter_decimal(valor_str):
         return None
 
 
+def converter_inteiro(valor_str):
+    # Converte "1" (texto) para int
+    try:
+        return int(str(valor_str).strip())
+    except ValueError:
+        return None
+
+
 def limpar_silver(conexao):
     # Limpa todas as tabelas Silver de uma vez para evitar erro de FK
     executar(conexao, "TRUNCATE TABLE silver_viagem, silver_pagamento, "
@@ -46,14 +54,17 @@ def transformar_viagem(conexao):
         valor_diarias = converter_decimal(dados.get("valor_diarias"))
         valor_passagens = converter_decimal(dados.get("valor_passagens"))
         valor_devolucao = converter_decimal(dados.get("valor_devolucao"))
-        valor_outros_gastos = converter_decimal(dados.get("valor_outros_gastos"))
+        valor_outros_gastos = converter_decimal(
+            dados.get("valor_outros_gastos"))
 
-        # Calculo do valor_total: diarias + passagens + outros gastos - devolucao
+    # valor_total = diarias + passagens + outros gastos - devolucao
         valor_total = ((valor_diarias or 0) + (valor_passagens or 0)
                        + (valor_outros_gastos or 0) - (valor_devolucao or 0))
 
         # Calculo de duracao_dias: data_fim - data_inicio + 1
-        duracao_dias = (data_fim - data_inicio).days + 1 if data_inicio and data_fim else None
+        duracao_dias = None
+        if data_inicio and data_fim:
+            duracao_dias = (data_fim - data_inicio).days + 1
 
         dados_transformados.append((
             dados.get("id_viagem"),
@@ -78,11 +89,15 @@ def transformar_viagem(conexao):
 
     sql = """
         INSERT INTO silver_viagem (
-            id_viagem, num_proposta, situacao, viagem_urgente, cod_orgao_superior,
-            nome_orgao_superior, nome_viajante, cargo, data_inicio, data_fim,
-            destinos, motivo, valor_diarias, valor_passagens, valor_devolucao,
-            valor_outros_gastos, valor_total, duracao_dias
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            id_viagem, num_proposta, situacao, viagem_urgente,
+            cod_orgao_superior, nome_orgao_superior, nome_viajante, cargo,
+            data_inicio, data_fim, destinos, motivo, valor_diarias,
+            valor_passagens, valor_devolucao, valor_outros_gastos,
+            valor_total, duracao_dias
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
     """
 
     inserir_em_lote(conexao, sql, dados_transformados)
@@ -121,7 +136,8 @@ def transformar_pagamento(conexao):
     """
 
     inserir_em_lote(conexao, sql, dados_transformados)
-    print(f"  silver_pagamento: {len(dados_transformados)} linhas transformadas")
+    print(f"  silver_pagamento: {len(dados_transformados)} "
+          "linhas transformadas")
 
 
 def transformar_passagem(conexao):
@@ -158,13 +174,16 @@ def transformar_passagem(conexao):
     sql = """
         INSERT INTO silver_passagem (
             id_viagem, meio_transporte, pais_origem_ida, uf_origem_ida,
-            cidade_origem_ida, pais_destino_ida, uf_destino_ida, cidade_destino_ida,
-            valor_passagem, taxa_servico, data_emissao
+            cidade_origem_ida, pais_destino_ida, uf_destino_ida,
+            cidade_destino_ida, valor_passagem, taxa_servico,
+            data_emissao
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     inserir_em_lote(conexao, sql, dados_transformados)
-    print(f"  silver_passagem: {len(dados_transformados)} linhas transformadas")
+    print(f"  silver_passagem: {len(dados_transformados)} "
+          "linhas transformadas")
+
 
 def transformar_trecho(conexao):
     # Transforma raw_trecho → silver_trecho
@@ -182,14 +201,15 @@ def transformar_trecho(conexao):
         origem_data = converter_data(dados.get("origem_data"))
         destino_data = converter_data(dados.get("destino_data"))
         numero_diarias = converter_decimal(dados.get("numero_diarias"))
+        sequencia_trecho = converter_inteiro(dados.get("sequencia_trecho"))
 
         dados_transformados.append((
             dados.get("id_viagem"),
-            dados.get("sequencia_trecho"),
-            origem_data, 
-            dados.get("origem_uf"), 
+            sequencia_trecho,
+            origem_data,
+            dados.get("origem_uf"),
             dados.get("origem_cidade"),
-            destino_data, 
+            destino_data,
             dados.get("destino_uf"),
             dados.get("destino_cidade"),
             dados.get("meio_transporte"),
@@ -198,14 +218,15 @@ def transformar_trecho(conexao):
 
     sql = """
         INSERT INTO silver_trecho (
-            id_viagem, sequencia_trecho, origem_data, origem_uf, origem_cidade,
-            destino_data, destino_uf, destino_cidade, meio_transporte, 
-            numero_diarias
+            id_viagem, sequencia_trecho, origem_data, origem_uf,
+            origem_cidade, destino_data, destino_uf, destino_cidade,
+            meio_transporte, numero_diarias
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     inserir_em_lote(conexao, sql, dados_transformados)
     print(f"  silver_trecho: {len(dados_transformados)} linhas transformadas")
+
 
 def main():
     print("INICIANDO TRANSFORMACAO - CAMADA SILVER")
