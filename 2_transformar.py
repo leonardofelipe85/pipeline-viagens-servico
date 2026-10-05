@@ -86,6 +86,40 @@ def transformar_viagem(conexao):
 
     inserir_em_lote(conexao, sql, dados_transformados)
     print(f"  silver_viagem: {len(dados_transformados)} linhas transformadas")
+
+def transformar_pagamento(conexao): 
+    # Transforma raw_pagamento - silver_pagamento 
+    print("Tranformando silver_pagamento")
+
+    cursor = conexao.cursor()
+    cursor.execute("SELECT * FROM raw_pagamento")
+    rows = cursor.fetchall()
+    colunas = [desc[0] for desc in cursor.description]
+
+    dados_transformados = []
+    for row in rows: 
+        dados= dict(zip(colunas, row))
+
+        valor = converter_decimal(dados.get("valor"))
+
+        dados_transformados.append((
+            dados.get("id_viagem"), 
+            dados.get("num_proposta"), 
+            dados.get("nome_orgao_pagador"), 
+            dados.get("nome_ug_pagadora"), 
+            dados.get("tipo_pagamento"), 
+            valor
+        ))
+
+    sql = """
+        INSERT INTO silver_pagamento (
+            id_viagem, num_proposta, nome_orgao_pagador, nome_ug_pagadora,
+            tipo_pagamento, valor
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+    """
+
+    inserir_em_lote(conexao, sql, dados_transformados)
+    print(f" silver_pagamento: {len(dados_transformados)} linhas transformadas")
     
 def main(): 
     print("INICIANDO TRANSFORMACAO - CAMADA SILVER")
@@ -97,6 +131,7 @@ def main():
 
         limpar_silver(conexao)
         transformar_viagem(conexao)
+        transformar_pagamento(conexao)
 
         print("=" *60)
         print("TRANSFORMACAO CONCLUIDA")
