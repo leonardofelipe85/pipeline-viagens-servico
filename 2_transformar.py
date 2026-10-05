@@ -1,31 +1,35 @@
 from banco import conectar, executar, inserir_em_lote
 from datetime import datetime
 
-def converter_data(data_str): 
-    #Converte DD/MM/AAAA para objeto date do Python
+
+def converter_data(data_str):
+    # Converte DD/MM/AAAA para objeto date do Python
     if not data_str or str(data_str).strip() == "":
-        return None 
-    try: 
-        return datetime.strptime(str(data_str).strip(), "%d/%m/%Y").date()
-    except ValueError: 
         return None
+    try:
+        return datetime.strptime(str(data_str).strip(), "%d/%m/%Y").date()
+    except ValueError:
+        return None
+
 
 def converter_decimal(valor_str):
-    #Converte '1272,97' (texto) para float
+    # Converte '1272,97' (texto) para float
     if not valor_str or str(valor_str).strip() == "":
         return None
-    try: 
+    try:
         return float(str(valor_str).strip().replace(",", "."))
-    except ValueError: 
-        return None 
+    except ValueError:
+        return None
 
-def limpar_silver(conexao): 
-    # Limpa todas as tabelas Silver de uma vez para evitar erro de FK 
+
+def limpar_silver(conexao):
+    # Limpa todas as tabelas Silver de uma vez para evitar erro de FK
     executar(conexao, "TRUNCATE TABLE silver_viagem, silver_pagamento, "
-             "silver_passagem, silver_trecho")
+                      "silver_passagem, silver_trecho")
 
-def transformar_viagem(conexao): 
-    # Transforma raw_viagem - silver_viagem
+
+def transformar_viagem(conexao):
+    # Transforma raw_viagem → silver_viagem
     print("Transformando silver_viagem...")
 
     cursor = conexao.cursor()
@@ -34,9 +38,9 @@ def transformar_viagem(conexao):
     colunas = [desc[0] for desc in cursor.description]
 
     dados_transformados = []
-    for row in rows: 
+    for row in rows:
         dados = dict(zip(colunas, row))
-        
+
         data_inicio = converter_data(dados.get("data_inicio"))
         data_fim = converter_data(dados.get("data_fim"))
         valor_diarias = converter_decimal(dados.get("valor_diarias"))
@@ -44,16 +48,16 @@ def transformar_viagem(conexao):
         valor_devolucao = converter_decimal(dados.get("valor_devolucao"))
         valor_outros_gastos = converter_decimal(dados.get("valor_outros_gastos"))
 
-# Calculo do valor_total: diarias + passagens + outros gastos - devolucao
+        # Calculo do valor_total: diarias + passagens + outros gastos - devolucao
         valor_total = ((valor_diarias or 0) + (valor_passagens or 0)
-               + (valor_outros_gastos or 0) - (valor_devolucao or 0))
-        
-# Calculo de duração_dias: data_fim - data_inicio + 1 (inclui dia inicial e final)
+                       + (valor_outros_gastos or 0) - (valor_devolucao or 0))
+
+        # Calculo de duracao_dias: data_fim - data_inicio + 1
         duracao_dias = (data_fim - data_inicio).days + 1 if data_inicio and data_fim else None
 
         dados_transformados.append((
-           dados.get("id_viagem"), 
-           dados.get("num_proposta"),
+            dados.get("id_viagem"),
+            dados.get("num_proposta"),
             dados.get("situacao"),
             dados.get("viagem_urgente"),
             dados.get("cod_orgao_superior"),
@@ -69,27 +73,25 @@ def transformar_viagem(conexao):
             valor_devolucao,
             valor_outros_gastos,
             valor_total,
-            duracao_dias 
+            duracao_dias
         ))
 
-    # REMOVIDO O TRUNCATE daqui - agora é feito na limpar_silver()
-    
     sql = """
-        INSERT INTO silver_viagem(
-        id_viagem, num_proposta, situacao, viagem_urgente, 
-        cod_orgao_superior, 
-                        nome_orgao_superior, nome_viajante, cargo, data_inicio, data_fim, 
-                        destinos, motivo, valor_diarias, valor_passagens, valor_devolucao, 
-                        valor_outros_gastos, valor_total, duracao_dias  
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO silver_viagem (
+            id_viagem, num_proposta, situacao, viagem_urgente, cod_orgao_superior,
+            nome_orgao_superior, nome_viajante, cargo, data_inicio, data_fim,
+            destinos, motivo, valor_diarias, valor_passagens, valor_devolucao,
+            valor_outros_gastos, valor_total, duracao_dias
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     inserir_em_lote(conexao, sql, dados_transformados)
     print(f"  silver_viagem: {len(dados_transformados)} linhas transformadas")
 
-def transformar_pagamento(conexao): 
-    # Transforma raw_pagamento - silver_pagamento 
-    print("Tranformando silver_pagamento")
+
+def transformar_pagamento(conexao):
+    # Transforma raw_pagamento → silver_pagamento
+    print("Transformando silver_pagamento...")
 
     cursor = conexao.cursor()
     cursor.execute("SELECT * FROM raw_pagamento")
@@ -97,17 +99,17 @@ def transformar_pagamento(conexao):
     colunas = [desc[0] for desc in cursor.description]
 
     dados_transformados = []
-    for row in rows: 
-        dados= dict(zip(colunas, row))
+    for row in rows:
+        dados = dict(zip(colunas, row))
 
         valor = converter_decimal(dados.get("valor"))
 
         dados_transformados.append((
-            dados.get("id_viagem"), 
-            dados.get("num_proposta"), 
-            dados.get("nome_orgao_pagador"), 
-            dados.get("nome_ug_pagadora"), 
-            dados.get("tipo_pagamento"), 
+            dados.get("id_viagem"),
+            dados.get("num_proposta"),
+            dados.get("nome_orgao_pagador"),
+            dados.get("nome_ug_pagadora"),
+            dados.get("tipo_pagamento"),
             valor
         ))
 
@@ -119,11 +121,55 @@ def transformar_pagamento(conexao):
     """
 
     inserir_em_lote(conexao, sql, dados_transformados)
-    print(f" silver_pagamento: {len(dados_transformados)} linhas transformadas")
-    
-def main(): 
+    print(f"  silver_pagamento: {len(dados_transformados)} linhas transformadas")
+
+
+def transformar_passagem(conexao):
+    # Transforma raw_passagem → silver_passagem
+    print("Transformando silver_passagem...")
+
+    cursor = conexao.cursor()
+    cursor.execute("SELECT * FROM raw_passagem")
+    rows = cursor.fetchall()
+    colunas = [desc[0] for desc in cursor.description]
+
+    dados_transformados = []
+    for row in rows:
+        dados = dict(zip(colunas, row))
+
+        valor_passagem = converter_decimal(dados.get("valor_passagem"))
+        taxa_servico = converter_decimal(dados.get("taxa_servico"))
+        data_emissao = converter_data(dados.get("data_emissao"))
+
+        dados_transformados.append((
+            dados.get("id_viagem"),
+            dados.get("meio_transporte"),
+            dados.get("pais_origem_ida"),
+            dados.get("uf_origem_ida"),
+            dados.get("cidade_origem_ida"),
+            dados.get("pais_destino_ida"),
+            dados.get("uf_destino_ida"),
+            dados.get("cidade_destino_ida"),
+            valor_passagem,
+            taxa_servico,
+            data_emissao
+        ))
+
+    sql = """
+        INSERT INTO silver_passagem (
+            id_viagem, meio_transporte, pais_origem_ida, uf_origem_ida,
+            cidade_origem_ida, pais_destino_ida, uf_destino_ida, cidade_destino_ida,
+            valor_passagem, taxa_servico, data_emissao
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+
+    inserir_em_lote(conexao, sql, dados_transformados)
+    print(f"  silver_passagem: {len(dados_transformados)} linhas transformadas")
+
+
+def main():
     print("INICIANDO TRANSFORMACAO - CAMADA SILVER")
-    print('=' *60)
+    print("=" * 60)
 
     conexao = None
     try:
@@ -132,17 +178,18 @@ def main():
         limpar_silver(conexao)
         transformar_viagem(conexao)
         transformar_pagamento(conexao)
+        transformar_passagem(conexao)
 
-        print("=" *60)
+        print("=" * 60)
         print("TRANSFORMACAO CONCLUIDA")
 
     except Exception as erro:
-        print(f" ERRO: {erro}")
-       
+        print(f"ERRO: {erro}")
         raise
-    finally: 
-        if conexao: 
+    finally:
+        if conexao:
             conexao.close()
 
-if __name__ == "__main__": 
+
+if __name__ == "__main__":
     main()
