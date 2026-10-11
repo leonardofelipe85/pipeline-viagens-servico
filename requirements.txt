@@ -1,4 +1,6 @@
 psycopg2-binary
 pandas
 gdown
+matplotlib
+ipykernel
 
